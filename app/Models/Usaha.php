@@ -17,6 +17,8 @@ class Usaha extends Model
         'kategori_id',
         'kelurahan_id',
         'nama_usaha',
+        'deskripsi',
+        'alamat',
         'latitude',
         'longitude',
         'foto_usaha',

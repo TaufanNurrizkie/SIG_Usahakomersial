@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers\User;
 
-use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreUsahaRequest;
-use App\Http\Requests\UpdateUsahaRequest;
+use App\Models\User;
 use App\Models\Usaha;
-use App\Models\DokumenUsaha;
-use App\Models\KategoriUsaha;
 use App\Models\Kelurahan;
+use App\Models\DokumenUsaha;
 use Illuminate\Http\Request;
+use App\Models\KategoriUsaha;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use App\Http\Requests\StoreUsahaRequest;
+use App\Http\Requests\UpdateUsahaRequest;
+use App\Notifications\PengajuanUsahaBaru;
 
 class UsahaController extends Controller
 {
@@ -63,6 +65,16 @@ class UsahaController extends Controller
             }
         }
 
+        // kirim ke ADMIN
+        User::role('admin')->get()->each(function ($admin) use ($usaha) {
+            $admin->notify(
+                new PengajuanUsahaBaru(
+                    $usaha,
+                    "Pengajuan usaha baru dari {$usaha->user->name}"
+                )
+            );
+        });
+
         return redirect()->route('user.usaha.index')
             ->with('success', 'Pengajuan usaha berhasil dikirim. Menunggu verifikasi admin.');
     }
@@ -70,7 +82,7 @@ class UsahaController extends Controller
     public function show(Usaha $usaha)
     {
         Gate::authorize('view', $usaha);
-        
+
         $usaha->load(['kategori', 'kelurahan', 'dokumens']);
 
         return view('user.usaha.show', compact('usaha'));
@@ -87,55 +99,55 @@ class UsahaController extends Controller
         return view('user.usaha.edit', compact('usaha', 'kategoris', 'kelurahans'));
     }
 
-public function update(UpdateUsahaRequest $request, Usaha $usaha)
-{
-    Gate::authorize('update', $usaha);
+    public function update(UpdateUsahaRequest $request, Usaha $usaha)
+    {
+        Gate::authorize('update', $usaha);
 
-    $data = $request->validated();
+        $data = $request->validated();
 
-    // Upload foto baru
-    if ($request->hasFile('foto_usaha')) {
-        if ($usaha->foto_usaha) {
-            Storage::disk('public')->delete($usaha->foto_usaha);
+        // Upload foto baru
+        if ($request->hasFile('foto_usaha')) {
+            if ($usaha->foto_usaha) {
+                Storage::disk('public')->delete($usaha->foto_usaha);
+            }
+
+            $foto = $request->file('foto_usaha');
+            $filename = 'usaha_' . time() . '_' . uniqid() . '.' . $foto->getClientOriginalExtension();
+            $data['foto_usaha'] = $foto->storeAs('foto_usaha', $filename, 'public');
         }
 
-        $foto = $request->file('foto_usaha');
-        $filename = 'usaha_' . time() . '_' . uniqid() . '.' . $foto->getClientOriginalExtension();
-        $data['foto_usaha'] = $foto->storeAs('foto_usaha', $filename, 'public');
-    }
-
-    /**
-     * ✅ JIKA PERNAH DITOLAK ADMIN ATAU CAMAT
-     * ➜ BALIK KE MENUNGGU_ADMIN
-     */
-    if (
-        $usaha->status === 'ditolak_admin' ||
-        $usaha->status === 'ditolak_camat'
-    ) {
-        $data['status'] = 'menunggu_admin';
-        $data['catatan_penolakan'] = null;
-    }
-
-    $usaha->update($data);
-
-    // Upload dokumen baru
-    if ($request->hasFile('dokumen')) {
-        foreach ($request->file('dokumen') as $index => $file) {
-            $jenis = $request->jenis_dokumen[$index] ?? 'lainnya';
-            $filename = 'dokumen_' . $usaha->id . '_' . time() . '_' . $index . '.' . $file->getClientOriginalExtension();
-            $path = $file->storeAs('dokumen_usaha', $filename, 'public');
-
-            DokumenUsaha::create([
-                'usaha_id' => $usaha->id,
-                'jenis_dokumen' => $jenis,
-                'file_path' => $path,
-            ]);
+        /**
+         * ✅ JIKA PERNAH DITOLAK ADMIN ATAU CAMAT
+         * ➜ BALIK KE MENUNGGU_ADMIN
+         */
+        if (
+            $usaha->status === 'ditolak_admin' ||
+            $usaha->status === 'ditolak_camat'
+        ) {
+            $data['status'] = 'menunggu_admin';
+            $data['catatan_penolakan'] = null;
         }
-    }
 
-    return redirect()->route('user.usaha.index')
-        ->with('success', 'Data usaha diperbarui dan dikirim ulang ke admin.');
-}
+        $usaha->update($data);
+
+        // Upload dokumen baru
+        if ($request->hasFile('dokumen')) {
+            foreach ($request->file('dokumen') as $index => $file) {
+                $jenis = $request->jenis_dokumen[$index] ?? 'lainnya';
+                $filename = 'dokumen_' . $usaha->id . '_' . time() . '_' . $index . '.' . $file->getClientOriginalExtension();
+                $path = $file->storeAs('dokumen_usaha', $filename, 'public');
+
+                DokumenUsaha::create([
+                    'usaha_id' => $usaha->id,
+                    'jenis_dokumen' => $jenis,
+                    'file_path' => $path,
+                ]);
+            }
+        }
+
+        return redirect()->route('user.usaha.index')
+            ->with('success', 'Data usaha diperbarui dan dikirim ulang ke admin.');
+    }
 
 
     public function destroy(Usaha $usaha)

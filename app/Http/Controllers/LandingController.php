@@ -25,14 +25,23 @@ class LandingController extends Controller
                 return [
                     'id' => $usaha->id,
                     'nama_usaha' => $usaha->nama_usaha,
+                    'deskripsi' => $usaha->deskripsi,
+                    'alamat' => $usaha->alamat,
                     'latitude' => (float) $usaha->latitude,
                     'longitude' => (float) $usaha->longitude,
                     'kategori' => $usaha->kategori?->nama_kategori ?? 'Tanpa Kategori',
                     'kelurahan' => $usaha->kelurahan?->nama_kelurahan ?? 'Tidak Diketahui',
+                    
                 ];
             })
             ->values();
 
+
+        $kelurahans = Kelurahan::withCount([
+            'usahas' => function ($query) {
+                $query->where('status', 'disetujui_camat');
+            }
+        ])->get();
         /**
          * =========================
          * STATISTIK PUBLIK
@@ -44,6 +53,7 @@ class LandingController extends Controller
             'usaha_terdaftar' => $approvedCount,
             'kategori' => KategoriUsaha::count(),
             'kelurahan' => Kelurahan::count(),
+
         ];
 
         /**
@@ -57,6 +67,15 @@ class LandingController extends Controller
             }
         ])->get();
 
-        return view('landing', compact('usahas', 'kategoris', 'stats'));
+        return view('landing', compact('usahas', 'kategoris', 'stats', 'kelurahans'));
+    }
+
+    public function show($id)
+    {
+        $usaha = Usaha::with(['kategori', 'kelurahan'])
+            ->where('status', 'disetujui_camat')
+            ->findOrFail($id);
+
+        return view('detail', compact('usaha'));
     }
 }

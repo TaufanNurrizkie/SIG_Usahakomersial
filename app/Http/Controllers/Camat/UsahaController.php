@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Usaha;
 use App\Models\KategoriUsaha;
 use App\Models\Kelurahan;
+use App\Notifications\PengajuanUsahaBaru;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -44,11 +45,11 @@ class UsahaController extends Controller
     public function show(Usaha $usaha)
     {
         $usaha->load(['user', 'kategori', 'kelurahan', 'dokumens']);
-        
+
         return view('camat.usaha.show', compact('usaha'));
     }
 
-public function approve(Request $request, Usaha $usaha)
+    public function approve(Request $request, Usaha $usaha)
     {
         // 🔐 Cek: hanya camat & status harus 'menunggu_camat'
         if (! Auth::user()->hasRole('camat') || $usaha->status !== 'menunggu_camat') {
@@ -74,6 +75,18 @@ public function approve(Request $request, Usaha $usaha)
             'catatan_penolakan' => null, // bersihkan jika pernah ditolak
         ]);
 
+        // 🔔 NOTIF KE USER PENGAJU
+        $user = $usaha->user;
+
+        if ($user) {
+            $user->notify(
+                new PengajuanUsahaBaru(
+                    $usaha,
+                    "Pengajuan usaha kamu TELAH DISETUJUI camat. Surat izin sudah diterbitkan."
+                )
+            );
+        }
+
         return redirect()->route('camat.usaha.index')
             ->with('success', 'Usaha berhasil disetujui dan surat izin telah diterbitkan.');
     }
@@ -95,6 +108,19 @@ public function approve(Request $request, Usaha $usaha)
             'status' => 'ditolak_camat',
             'catatan_penolakan' => $request->catatan_penolakan,
         ]);
+
+        // 🔔 NOTIF KE USER PENGAJU
+        $user = $usaha->user;
+
+        if ($user) {
+            $user->notify(
+                new PengajuanUsahaBaru(
+                    $usaha,
+                    "Pengajuan usaha kamu DITOLAK camat. Catatan: {$request->catatan_penolakan}"
+                )
+            );
+        }
+
 
         return redirect()->route('camat.usaha.index')
             ->with('success', 'Usaha telah ditolak.');

@@ -15,6 +15,8 @@ class StoreUsahaRequest extends FormRequest
     {
         return [
             'nama_usaha' => 'required|string|max:255',
+            'deskripsi' => 'required|string|max:1000',
+            'alamat' => 'required|string|max:255',
             'kategori_id' => 'required|exists:kategori_usahas,id',
             'kelurahan_id' => 'required|exists:kelurahans,id',
             'latitude' => 'required|numeric|between:-90,90',
@@ -31,6 +33,8 @@ class StoreUsahaRequest extends FormRequest
     {
         return [
             'nama_usaha.required' => 'Nama usaha wajib diisi',
+            'deskripsi.required' => 'Deskripsi usaha wajib diisi',
+            'alamat.required' => 'Alamat usaha wajib diisi',
             'kategori_id.required' => 'Kategori usaha wajib dipilih',
             'kategori_id.exists' => 'Kategori usaha tidak valid',
             'kelurahan_id.required' => 'Kelurahan wajib dipilih',

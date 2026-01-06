@@ -17,13 +17,15 @@ return new class extends Migration
             $table->decimal('latitude', 10, 8);
             $table->decimal('longitude', 11, 8);
             $table->string('foto_usaha')->nullable();
-$table->enum('status', [
-        'menunggu_admin',
-        'ditolak_admin',
-        'menunggu_camat',
-        'ditolak_camat',
-        'disetujui_camat'
-    ])->default('menunggu_admin');
+            $table->text('deskripsi')->nullable();
+            $table->string('alamat');
+            $table->enum('status', [
+                'menunggu_admin',
+                'ditolak_admin',
+                'menunggu_camat',
+                'ditolak_camat',
+                'disetujui_camat'
+            ])->default('menunggu_admin');
             $table->string('surat_izin')->nullable();
             $table->text('catatan_penolakan')->nullable();
             $table->timestamps();
